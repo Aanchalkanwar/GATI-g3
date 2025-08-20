@@ -16,7 +16,7 @@ st.set_page_config(
 st.title("🛰️ Interactive Satellite Orbit Visualizer")
 st.markdown("""
 This application fetches recent TLE data for 10 satellites and plots their orbits in 3D space. 
-The visualization shows their paths over the **past 30 days and predicts their positions for the next 7 days**.
+The visualization shows their paths over the **past 30 days**.
 """)
 
 # --- Part 1: Fetch TLEs for satellites ---
@@ -28,6 +28,7 @@ def fetch_tles():
     
     with st.spinner('Fetching satellite data from Celestrak...'):
         for norad in norad_ids:
+            # The general purpose TLE link is the most reliable for current data.
             url = f"https://celestrak.org/NORAD/elements/gp.php?CATNR={norad}&FORMAT=TLE"
             try:
                 resp = requests.get(url, timeout=10)
@@ -52,14 +53,14 @@ def compute_positions(tle_data):
     if not tle_data:
         return None
 
-    # Time span: past 30 days + next 7 days (for prediction)
+    # Time span: past 30 days
     time_step_hours = 6
     start_past = datetime.utcnow() - timedelta(days=30)
-    end_future = datetime.utcnow() + timedelta(days=7)
+    end_past = datetime.utcnow()
     
     times = []
     current = start_past
-    while current <= end_future:
+    while current <= end_past:
         times.append(current)
         current += timedelta(hours=time_step_hours)
     
@@ -93,16 +94,14 @@ def create_plot(positions, sf_times):
     colors = ['#FF4500', '#1E90FF', '#32CD32', '#FFD700', '#9400D3', '#00CED1', '#FF69B4', '#8B4513', '#696969', '#7CFC00']
     
     # === Draw Earth ===
-    # Using a mesh with continents for a better visual representation
     fig.add_trace(go.Mesh3d(
-        x=[0], y=[0], z=[0],  # Dummy point to use for adding continents
-        alphahull=-1, # Make the surface not rendered
+        x=[0], y=[0], z=[0], 
+        alphahull=-1, 
         name='Earth'
     ))
 
-    # Add the base sphere for the Earth
-    u, v = np.mgrid[0:2*np.pi:50j, 0:np.pi:25j]
     earth_radius = 6371  # Earth's radius in km
+    u, v = np.mgrid[0:2*np.pi:50j, 0:np.pi:25j]
     earth_x = earth_radius * np.cos(u) * np.sin(v)
     earth_y = earth_radius * np.sin(u) * np.sin(v)
     earth_z = earth_radius * np.cos(v)
@@ -136,7 +135,6 @@ def create_plot(positions, sf_times):
     frames = []
     num_points = len(sf_times)
     
-    # Use a range for the animation points
     animation_points = range(1, num_points)
 
     for t in animation_points:
@@ -156,12 +154,12 @@ def create_plot(positions, sf_times):
 
     # === Layout and Animation Buttons ===
     fig.update_layout(
-        title="Satellite Orbits Over 37 Days",
+        title="Satellite Orbits Over the Past 30 Days",
         scene=dict(
             xaxis_title='X (km)',
             yaxis_title='Y (km)',
             zaxis_title='Z (km)',
-            aspectmode='data'  # This is the key change to maintain correct scaling
+            aspectmode='data'
         ),
         margin=dict(l=0, r=0, b=0, t=50),
         updatemenus=[dict(
@@ -187,4 +185,4 @@ if __name__ == "__main__":
         positions, sf_times = compute_positions(tle_data)
         if positions:
             fig = create_plot(positions, sf_times)
-            st.plotly_chart(fig, use_container_width=True)# app.py
+            st.plotly_chart(fig, use_container_width=True)
