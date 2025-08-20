@@ -1,5 +1,0 @@
-streamlit
-requests
-skyfield
-plotly
-numpy
